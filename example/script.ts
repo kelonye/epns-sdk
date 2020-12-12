@@ -39,7 +39,7 @@ async function setupChannel(): Promise<void> {
   provider = new ethers.providers.Web3Provider(ethereum)
 
   channel = new Channel(CHANNEL_ADDRESS, provider.getSigner())
-  channel.onSubscriptionStateChange(onSubscriptionStateChanged)
+  channel.onChangeSubscriptionState(onChangeSubscriptionStated)
 
   const [subscribed, info] = await Promise.all([
     channel.getIsSubscribed(),
@@ -48,7 +48,7 @@ async function setupChannel(): Promise<void> {
 
   document.getElementById('channel-info').innerText = `Channel: ${info.name}`
 
-  onSubscriptionStateChanged(subscribed)
+  onChangeSubscriptionStated(subscribed)
 }
 
 /**
@@ -56,6 +56,6 @@ async function setupChannel(): Promise<void> {
  * @param  {Boolean} subscribed
  * @returns void
  */
-function onSubscriptionStateChanged(subscribed: Boolean): void {
+function onChangeSubscriptionStated(subscribed: Boolean): void {
   button.innerText = subscribed ? 'Unsubscribe' : 'Subscribe'
 }

@@ -12,8 +12,7 @@ export class Channel {
   contract: ethers.Contract
   signer: ethers.Signer
   channelAddress: string
-  subscribed: boolean
-  subscriptionChangeSubscribers: Array<Function>
+  changeSubscriptionSubscribers: Array<Function>
 
   /**
    * Make new Channel
@@ -23,7 +22,7 @@ export class Channel {
   constructor(channelAddress: string, signer: ethers.Signer) {
     this.signer = signer
     this.channelAddress = channelAddress
-    this.subscriptionChangeSubscribers = []
+    this.changeSubscriptionSubscribers = []
 
     this.contract = new ethers.Contract(
       ROPSTEN_EPNS_CONTRACT_ADDRESS,
@@ -42,7 +41,7 @@ export class Channel {
     const userAddress = await this.signer.getAddress()
     this.contract.on(event, (channelAddress, eventUserAddress) => {
       if (userAddress === eventUserAddress) {
-        this.subscriptionChangeSubscribers.map((fn) => {
+        this.changeSubscriptionSubscribers.map((fn) => {
           fn(event === SUBSCRIBED_EVENT)
         })
       }
@@ -129,7 +128,7 @@ export class Channel {
    * @param  {Function} fn
    * @returns void
    */
-  onSubscriptionStateChange(fn: Function): void {
-    this.subscriptionChangeSubscribers.push(fn)
+  onChangeSubscriptionState(fn: Function): void {
+    this.changeSubscriptionSubscribers.push(fn)
   }
 }
