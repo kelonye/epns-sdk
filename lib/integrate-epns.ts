@@ -1,4 +1,5 @@
-import {Contract, Signer} from 'ethers'
+import * as ethers from 'ethers'
+import {start} from 'repl'
 import EPNS_CONTRACT_ABI from './abis/epns.json'
 import {ChannelInfo} from './types'
 
@@ -8,8 +9,8 @@ const SUBSCRIBED_EVENT = 'Subscribe'
 const UNSUBSCRIBED_EVENT = 'Unsubscribe'
 
 export class Channel {
-  contract: Contract
-  signer: Signer
+  contract: ethers.Contract
+  signer: ethers.Signer
   channelAddress: string
   subscribed: boolean
   subscriptionChangeSubscribers: Array<Function>
@@ -19,12 +20,12 @@ export class Channel {
    * @param  {string} channelAddress
    * @param  {Signer} signer
    */
-  constructor(channelAddress: string, signer: Signer) {
+  constructor(channelAddress: string, signer: ethers.Signer) {
     this.signer = signer
     this.channelAddress = channelAddress
     this.subscriptionChangeSubscribers = []
 
-    this.contract = new Contract(
+    this.contract = new ethers.Contract(
       ROPSTEN_EPNS_CONTRACT_ADDRESS,
       EPNS_CONTRACT_ABI,
       signer
@@ -53,7 +54,38 @@ export class Channel {
    * @returns Promise
    */
   async getInfo(): Promise<ChannelInfo> {
-    return await this.contract.channels(this.channelAddress)
+    const info = await this.contract.channels(this.channelAddress)
+    const startBlock = info.channelStartBlock?.toNumber()
+    const updateBlock = info.channelUpdateBlock?.toNumber()
+
+    // todo: use subgraph
+
+    console.log(startBlock, updateBlock)
+
+    let filter
+    let block
+    if (updateBlock && startBlock !== updateBlock) {
+      filter = this.contract.filters.UpdateChannel(this.channelAddress)
+      block = updateBlock
+    } else {
+      filter = this.contract.filters.AddChannel(this.channelAddress)
+      block = startBlock
+    }
+
+    console.log(block)
+
+    let filteredResponse
+    const events = await this.contract.queryFilter(filter, block, block)
+    console.log(events)
+    events.forEach((item) => {
+      if (item.args.channel.toString() === this.channelAddress.toString()) {
+        filteredResponse = ethers.utils.toUtf8String(item.args.identity)
+      }
+    })
+
+    console.log(filteredResponse)
+
+    return info
   }
 
   /**

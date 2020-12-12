@@ -2,6 +2,7 @@
  * Represents general channel info
  */
 export interface ChannelInfo {
+  name: string
   channelType: number
   deactivated: boolean
   poolContribution: number
