@@ -3,7 +3,7 @@ import * as ethers from 'ethers'
 
 declare const ethereum: any
 
-const CHANNEL_ADDRESS = '0x0a651cF7A9b60082fecdb5f30DB7914Fd7d2cf93'
+const CHANNEL_ADDRESS = '0xe67163ab11D4b39C5616bD84BbdF8eFbDF7a5D00'
 let button: HTMLElement
 let provider: ethers.providers.Web3Provider
 let channel: Channel
@@ -45,9 +45,7 @@ async function setupChannel(): Promise<void> {
     channel.getIsSubscribed(),
     channel.getInfo(),
   ])
-
   document.getElementById('channel-info').innerText = `Channel: ${info.name}`
-
   onChangeSubscriptionStated(subscribed)
 }
 

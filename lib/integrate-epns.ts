@@ -4,7 +4,7 @@ import EPNS_CONTRACT_ABI from './abis/epns.json'
 import {ChannelInfo} from './types'
 
 const ROPSTEN_EPNS_CONTRACT_ADDRESS =
-  '0xb02E99b9634bD21A8e3E36cc7adb673287A8FeaC'
+  '0xc882da9660d29c084345083922f8a9292e58787d'
 const SUBSCRIBED_EVENT = 'Subscribe'
 const UNSUBSCRIBED_EVENT = 'Unsubscribe'
 
@@ -23,7 +23,6 @@ export class Channel {
     this.signer = signer
     this.channelAddress = channelAddress
     this.changeSubscriptionSubscribers = []
-
     this.contract = new ethers.Contract(
       ROPSTEN_EPNS_CONTRACT_ADDRESS,
       EPNS_CONTRACT_ABI,
@@ -54,37 +53,34 @@ export class Channel {
    */
   async getInfo(): Promise<ChannelInfo> {
     const info = await this.contract.channels(this.channelAddress)
-    const startBlock = info.channelStartBlock?.toNumber()
-    const updateBlock = info.channelUpdateBlock?.toNumber()
+    const startBlock = info.channelStartBlock.toNumber()
+    const updateBlock =
+      info.channelLastUpdate?.toNumber() ?? info.channelUpdateBlock?.toNumber()
 
     // todo: use subgraph
 
-    console.log(startBlock, updateBlock)
+    const [storagePlusIdentity] = (updateBlock !== startBlock
+      ? await this.contract.queryFilter(
+          this.contract.filters.UpdateChannel(this.channelAddress),
+          updateBlock,
+          updateBlock
+        )
+      : await this.contract.queryFilter(
+          this.contract.filters.AddChannel(this.channelAddress),
+          startBlock,
+          startBlock
+        )
+    )
+      .filter(
+        (item) =>
+          item.args.channel.toString() === this.channelAddress.toString()
+      )
+      .map((item) => ethers.utils.toUtf8String(item.args.identity))
 
-    let filter
-    let block
-    if (updateBlock && startBlock !== updateBlock) {
-      filter = this.contract.filters.UpdateChannel(this.channelAddress)
-      block = updateBlock
-    } else {
-      filter = this.contract.filters.AddChannel(this.channelAddress)
-      block = startBlock
-    }
+    // first segment is storage type, second is the pointer to it
+    const [storageType, identity] = storagePlusIdentity.split('+')
 
-    console.log(block)
-
-    let filteredResponse
-    const events = await this.contract.queryFilter(filter, block, block)
-    console.log(events)
-    events.forEach((item) => {
-      if (item.args.channel.toString() === this.channelAddress.toString()) {
-        filteredResponse = ethers.utils.toUtf8String(item.args.identity)
-      }
-    })
-
-    console.log(filteredResponse)
-
-    return info
+    return await (await fetch(`https://ipfs.io/ipfs/${identity}`)).json()
   }
 
   /**
