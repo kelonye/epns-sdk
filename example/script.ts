@@ -1,59 +1,97 @@
-import {Channel} from '../lib'
+import {
+  Query as EPNSQuery,
+  ChannelSubscription as EPNSChannelSubscription,
+} from '../lib'
 import * as ethers from 'ethers'
 
 declare const ethereum: any
 
-const CHANNEL_ADDRESS = '0xe67163ab11D4b39C5616bD84BbdF8eFbDF7a5D00'
-let button: HTMLElement
-let provider: ethers.providers.Web3Provider
-let channel: Channel
+const IS_STAGING = true
+const ROPSTEN_EPNS_CONTRACT_ADDRESS = IS_STAGING
+  ? '0xc882da9660d29c084345083922f8a9292e58787d'
+  : '0xb02E99b9634bD21A8e3E36cc7adb673287A8FeaC'
+const SUBGRAPH_URL = IS_STAGING
+  ? 'https://api.thegraph.com/subgraphs/name/vbstreetz/epns-staging'
+  : 'https://api.thegraph.com/subgraphs/name/vbstreetz/epns'
+const CHANNEL_ADDRESS = IS_STAGING
+  ? '0x0b5E9fa12C4C1946fA2f14b7271cC60541508f23'
+  : '0xC07CF51BC3C356a8f0035936e81859F80bDcD5aC'
 
-window.onload = main
+window.onload = () => new Program()
 
-/**
- * Start
- * @returns Promise
- */
-async function main(): Promise<void> {
-  if (globalThis.ethereum && ethereum.isConnected()) {
-    setupChannel()
+class Program {
+  query: EPNSQuery
+  channelSubscription: EPNSChannelSubscription
+
+  provider: ethers.providers.Web3Provider
+  signer: ethers.Signer
+  userAddress: string
+
+  button: HTMLElement
+  channelNameLabelEl: HTMLElement
+
+  constructor() {
+    this.setup()
   }
 
-  button = document.querySelector('button')
-  button.onclick = async (): Promise<void> => {
-    if (!provider) {
-      if (!globalThis.ethereum)
-        return alert('Please install metamask extension')
-      await ethereum.enable()
-      await setupChannel()
+  async setup() {
+    this.button = document.querySelector('button')!
+    this.channelNameLabelEl = document.getElementById('channel-name')!
+
+    this.setupQuery()
+    this.setChannelName()
+
+    if (globalThis.ethereum && ethereum.isConnected()) {
+      await this.setupEthersSigner()
     }
-    await channel.toggleSubscriptionState.call(channel)
+
+    this.setupChannelSubscription()
+    this.handleChannelSubscriptionChange()
   }
-}
 
-/**
- * Setup and subscribe to `CHANNEL_ADDRESS`
- * @returns Promise
- */
-async function setupChannel(): Promise<void> {
-  provider = new ethers.providers.Web3Provider(ethereum)
+  setupQuery() {
+    this.query = new EPNSQuery(SUBGRAPH_URL)
+  }
 
-  channel = new Channel(CHANNEL_ADDRESS, provider.getSigner())
-  channel.onChangeSubscriptionState(onChangeSubscriptionStated)
+  async setChannelName() {
+    const channel = await this.query.getChannel(CHANNEL_ADDRESS)
+    this.channelNameLabelEl.innerText = `Channel: ${channel?.name ?? '-'}`
+  }
 
-  const [subscribed, info] = await Promise.all([
-    channel.getIsSubscribed(),
-    channel.getInfo(),
-  ])
-  document.getElementById('channel-info').innerText = `Channel: ${info.name}`
-  onChangeSubscriptionStated(subscribed)
-}
+  setupChannelSubscription() {
+    this.channelSubscription = new EPNSChannelSubscription(
+      this.signer,
+      ROPSTEN_EPNS_CONTRACT_ADDRESS,
+      CHANNEL_ADDRESS
+    )
+    this.channelSubscription.onChange(
+      this.onChangeChannelSubscriptionState.bind(this)
+    )
+  }
 
-/**
- * Update button text due to channel's `subscribed` state
- * @param  {Boolean} subscribed
- * @returns void
- */
-function onChangeSubscriptionStated(subscribed: Boolean): void {
-  button.innerText = subscribed ? 'Unsubscribe' : 'Subscribe'
+  async setupEthersSigner(): Promise<void> {
+    this.provider = new ethers.providers.Web3Provider(ethereum)
+    this.signer = this.provider.getSigner()
+    this.userAddress = await this.signer.getAddress()
+  }
+
+  async handleChannelSubscriptionChange() {
+    this.button.onclick = async (): Promise<void> => {
+      if (!this.provider) {
+        if (!globalThis.ethereum)
+          return alert('Please install metamask extension')
+        await ethereum.enable()
+        await this.setupEthersSigner()
+      }
+      await this.channelSubscription.toggle.call(this.channelSubscription)
+    }
+
+    this.onChangeChannelSubscriptionState(
+      await this.channelSubscription.getIsSubscribed()
+    )
+  }
+
+  onChangeChannelSubscriptionState(subscribed: Boolean): void {
+    this.button.innerText = subscribed ? 'Unsubscribe' : 'Subscribe'
+  }
 }
