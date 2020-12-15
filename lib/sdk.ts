@@ -8,16 +8,20 @@ const UNSUBSCRIBED_EVENT = 'Unsubscribe'
 export class Query {
   subGraphUrl: string
 
+  /**
+   * Make a new `Query` client to use to run queries against an EPNS subgraph at `subGraphUrl`.
+   * @param  {string} subGraphUrl
+   */
   constructor(subGraphUrl: string) {
     this.subGraphUrl = subGraphUrl
   }
 
   /**
-   * Get a list of channels
+   * Get a list of all channels.
    * @returns Promise
    */
   async getChannels(): Promise<Array<Channel>> {
-    const {channels} = await this.querySubGraph(
+    const {channels} = await this.request(
       `
       query ($first: Int) {
         channels(first: $first) {
@@ -37,12 +41,12 @@ export class Query {
   }
 
   /**
-   * Get channel info matching `channelAddress`
+   * Get channel info for `channelAddress`.
    * @param  {string} channelAddress
    * @returns Promise
    */
   async getChannel(channelAddress: string): Promise<Channel> {
-    const {channels} = await this.querySubGraph(
+    const {channels} = await this.request(
       `
       query($id: String) {
         channels(where: {id: $id}) {
@@ -62,12 +66,12 @@ export class Query {
   }
 
   /**
-   * Get `userAddress`'s notifications
+   * Get all `userAddress`'s notifications.
    * @param  {string} userAddress
    * @returns Promise
    */
   async getNotifications(userAddress: string): Promise<Array<Notification>> {
-    const {notifications} = await this.querySubGraph(
+    const {notifications} = await this.request(
       `
         query ($userAddress: String) {
           notifications(where: {userAddress: $userAddress}) {
@@ -85,7 +89,7 @@ export class Query {
   }
 
   /**
-   * Get whether `userAddress` is subscribed to `channelAddress`
+   * Get whether `userAddress` is subscribed to `channelAddress`.
    * @returns Promise
    */
   async getIsSubscribed(
@@ -94,7 +98,7 @@ export class Query {
   ): Promise<boolean> {
     const {
       subscriptionStates: [subscriptionState],
-    } = await this.querySubGraph(
+    } = await this.request(
       `
       query ($channelAddress: String, $userAddress: String) {
         subscriptionStates(where: {channelAddress: $channelAddress, userAddress: $userAddress}) {
@@ -111,12 +115,12 @@ export class Query {
   }
 
   /**
-   * Execute a `query` against `subgraphUrl`
+   * Execute a `query` (with `variables`) against `subgraphUrl`.
    * @param  {string} query
    * @param  {any} variables
    * @returns Promise
    */
-  private async querySubGraph(query: string, variables: any): Promise<any> {
+  async request(query: string, variables: any): Promise<any> {
     const res = await fetch(this.subGraphUrl, {
       method: 'POST',
       body: JSON.stringify({query, variables}),
@@ -132,13 +136,19 @@ export class ChannelSubscription {
   channelAddress: string
   contract: ethers.Contract
 
+  /**
+   * Make a new `ChannelSubscription` client for `signer` and `channelAddress` at `contractAddress`.
+   * @param  {string} contractAddress
+   * @param  {ethers.Signer} signer
+   * @param  {string} channelAddress
+   */
   constructor(
-    signer: ethers.Signer,
     contractAddress: string,
+    signer: ethers.Signer,
     channelAddress: string
   ) {
-    this.signer = signer
     this.contractAddress = contractAddress
+    this.signer = signer
     this.channelAddress = channelAddress
     this.contract = new ethers.Contract(
       contractAddress,
@@ -148,7 +158,7 @@ export class ChannelSubscription {
   }
 
   /**
-   * Subscribe to channel
+   * Subscribe to channel.
    * @returns Promise
    */
   async subscribe(): Promise<void> {
@@ -156,7 +166,7 @@ export class ChannelSubscription {
   }
 
   /**
-   * Cancel channel subscription
+   * Cancel subscription.
    * @returns Promise
    */
   async unsubscribe(): Promise<void> {
@@ -164,7 +174,7 @@ export class ChannelSubscription {
   }
 
   /**
-   * Toggle subscription state of the user address
+   * Toggle subscription state of the user.
    * @returns Promise
    */
   async toggle(): Promise<void> {
@@ -173,7 +183,7 @@ export class ChannelSubscription {
   }
 
   /**
-   * Get whether user address is subscribed to channel
+   * Get whether user address is subscribed to channel.
    * @returns Promise
    */
   async getIsSubscribed(): Promise<boolean> {
@@ -184,7 +194,8 @@ export class ChannelSubscription {
   }
 
   /**
-   * Subscribe to changes in the subscription state of user address and invoke `fn(subscribed)`
+   * Subscribe to changes in the subscription state of user address and invoke `fn(subscribed: boolean)`.
+   * Returns a function to stop listening to the changes.
    * @param  {Function} fn
    * @returns void
    */

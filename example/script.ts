@@ -60,8 +60,8 @@ class Program {
 
   setupChannelSubscription() {
     this.channelSubscription = new EPNSChannelSubscription(
-      this.signer,
       ROPSTEN_EPNS_CONTRACT_ADDRESS,
+      this.signer,
       CHANNEL_ADDRESS
     )
     this.channelSubscription.onChange(
