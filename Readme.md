@@ -10,7 +10,7 @@ yarn add epns-sdk
 
 Use
 
-```javascript
+```typescript
 import {Query, ChannelSubscription} from 'epns-sdk'
 import * as ethers from 'ethers'
 
@@ -23,7 +23,10 @@ import * as ethers from 'ethers'
   const channel = await query.getChannel(CHANNEL_ADDRESS)
 
   const provider = new ethers.providers.Web3Provider(window.ethereum)
-  const channelSubscription = new ChannelSubscription(ROPSTEN_CONTRACT_ADDRESS, provider.getSigner(), CHANNEL_ADDRESS)
+  const channelSubscription = new ChannelSubscription(
+    ROPSTEN_CONTRACT_ADDRESS,
+    provider.getSigner(), CHANNEL_ADDRESS
+  )
   console.log('subscribed to %s: %s', (channel.name, await channelSubscription.getIsSubscribed())
   channelSubscription.onChange(subscribed => console.log({subscribed}))
   button.onclick = () => await channel.toggle()
@@ -32,7 +35,10 @@ import * as ethers from 'ethers'
 
 ## API
 
-The SDK provides `Query` and `ChannelSubscription` clients that can be used to ran queries against an EPNS subgraph and interact with an EPNS contract address respectively.
+The SDK provides the following clients:
+
+- Query: ran queries against an EPNS subgraph
+- ChannelSubscription: subscribe and/ manage the subscription to a channel
 
 ### Query
 
@@ -40,9 +46,11 @@ The SDK provides `Query` and `ChannelSubscription` clients that can be used to r
 
 Make a new `Query` client to use to run queries against an EPNS subgraph at `subGraphUrl`.
 
-#### query.getChannels(): Promise<Array<Channel>>
+#### query.getChannels(page?: number, count?: number): Promise<Array<Channel>>
 
-Get a list of all channels.
+Get a list of channels.
+To get all channels, invoke: `query.getChannels()`.
+To retrieve a paginated list of channels, pass in the `page` and `count` query parameters, e.g. `query.getChannels(1, 3)`.
 
 #### query.getChannel(channelAddress: string): Promise<Channel>
 
@@ -50,7 +58,8 @@ Get channel info for `channelAddress`.
 
 #### query.getNotifications(userAddress: string): Promise<Array<Notification>>
 
-Get all `userAddress`'s notifications.
+Get a list of a `userAddress`'s notifications.
+Pass in the optional `page` and `count` to get a paginated list of the notifications.
 
 #### query.getIsSubscribed(channelAddress: string, userAddress: string): Promise<boolean>
 

@@ -17,26 +17,45 @@ export class Query {
   }
 
   /**
-   * Get a list of all channels.
+   * Get a list of channels.
+   * To get all channels, invoke: `query.getChannels()`.
+   * To retrieve a paginated list of channels, pass in the `page` and `count` query parameters, e.g. `query.getChannels(1, 3)`.
+   * @param  {number} page
+   * @param  {number} count
    * @returns Promise
    */
-  async getChannels(): Promise<Array<Channel>> {
-    const {channels} = await this.request(
-      `
-      query ($first: Int) {
-        channels(first: $first) {
-          id
-          name
-          info
-          url
-          icon
+  async getChannels(page?: number, count?: number): Promise<Array<Channel>> {
+    const isPaging = page !== undefined && count !== undefined
+    const query = isPaging
+      ? `
+          query ($first: Int, $skip: Int) {
+            channels(first: $first, skip: $skip, orderBy: startBlock) {
+              id
+              name
+              info
+              url
+              icon
+            }
+          }
+        `
+      : `
+          query {
+            channels(orderBy: startBlock) {
+              id
+              name
+              info
+              url
+              icon
+            }
+          }
+        `
+    const variables = isPaging
+      ? {
+          first: count,
+          skip: page! * count!,
         }
-      }
-    `,
-      {
-        first: 30,
-      }
-    )
+      : {}
+    const {channels} = await this.request(query, variables)
     return channels
   }
 
@@ -66,30 +85,56 @@ export class Query {
   }
 
   /**
-   * Get all `userAddress`'s notifications.
+   * Get a list of a `userAddress`'s notifications.
+   * Pass in the optional `page` and `count` to get a paginated list of the notifications.
    * @param  {string} userAddress
+   * @param  {number} page
+   * @param  {number} count
    * @returns Promise
    */
-  async getNotifications(userAddress: string): Promise<Array<Notification>> {
-    const {notifications} = await this.request(
-      `
-        query ($userAddress: String) {
-          notifications(where: {userAddress: $userAddress}) {
-            id
-            notificationTitle
-            notificationBody
+  async getNotifications(
+    userAddress: string,
+    page?: number,
+    count?: number
+  ): Promise<Array<Notification>> {
+    const isPaging = page !== undefined && count !== undefined
+    const query = isPaging
+      ? `
+          query ($userAddress: String, $first: Int, $skip: Int) {
+            notifications(first: $first, skip: $skip, where: {userAddress: $userAddress}) {
+              id
+              notificationTitle
+              notificationBody
+            }
           }
+        `
+      : `
+          query ($userAddress: String) {
+            notifications(where: {userAddress: $userAddress}) {
+              id
+              notificationTitle
+              notificationBody
+            }
+          }
+        `
+    const variables = isPaging
+      ? {
+          userAddress,
+          first: count,
+          skip: page! * count!,
         }
-      `,
-      {
-        userAddress,
-      }
-    )
+      : {
+          userAddress,
+        }
+
+    const {notifications} = await this.request(query, variables)
     return notifications
   }
 
   /**
    * Get whether `userAddress` is subscribed to `channelAddress`.
+   * @param  {string} channelAddress
+   * @param  {string} userAddress
    * @returns Promise
    */
   async getIsSubscribed(
