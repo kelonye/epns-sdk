@@ -37,9 +37,9 @@ import * as ethers from 'ethers'
 
 The SDK provides the following clients:
 
-- Query: ran queries against an EPNS subgraph
-- ChannelSubscription: subscribe and/ manage the subscription to a channel
-- ChannelOwner: send out channel notifications, get stats etc
+- Query: ran queries against an EPNS subgraph.
+- ChannelSubscription: subscribe and/ manage the subscription to a channel.
+- ChannelOwner: send out channel notifications, get stats etc.
 
 ### Query
 

@@ -282,37 +282,48 @@ export class ChannelOwner {
     this.contract = makeContract(contractAddress, signer)
   }
 
+  async getIsCreated(): Promise<boolean> {
+    const channel = await this.contract.channels(await this.signer.getAddress())
+    return !channel.channelStartBlock.isZero()
+  }
+
   async getStats(): Promise<any> {}
 
   async notify(
-    type: string,
-    recipientAddress: string,
-    sub: string,
+    type: number,
     msg: string,
-    cta: string,
-    img: string
+    recipientAddress?: string,
+    sub?: string,
+    cta?: string,
+    img?: string
   ): Promise<ethers.Transaction> {
-    let encryptedSecret: string = ''
-
-    let nsub: string = '',
+    let encryptedSecret: string = '',
+      nsub: string = '',
       nmsg: string = '',
       asub: string = '',
       amsg: string = '',
       acta: string = '',
       aimg: string = ''
 
+    if (type === 1 || type === 2) {
+      recipientAddress = await this.signer.getAddress()
+    }
+
     // Decide type and storage
     switch (type) {
       // Broadcast Notification
-      case '1':
+      case 1:
         break
 
       // Targetted Notification
-      case '3':
+      case 3:
+        if (recipientAddress === null) {
+          throw new Error('recipientAddress is required for type 3')
+        }
         break
 
       // Secret Notification
-      case '2':
+      case 2:
         // Create secret
         let secret = crypto.makeid(14)
 
@@ -321,7 +332,7 @@ export class ChannelOwner {
         nmsg = 'Open the app to see your secret message!'
 
         // get public key from EPNSCoreHelper
-        const k = await this.getRegisteredPublicKey(recipientAddress)
+        const k = await this.getRegisteredPublicKey(recipientAddress!)
         if (k === null) {
           // No public key, can't encrypt
           throw new Error(
@@ -333,21 +344,21 @@ export class ChannelOwner {
         debug('This is public Key: ' + publickey)
 
         encryptedSecret = await crypto.encryptWithECIES(secret, publickey)
-        asub = crypto.encryptWithAES(sub, secret)
         amsg = crypto.encryptWithAES(msg, secret)
+        asub = crypto.encryptWithAES(sub, secret)
         acta = crypto.encryptWithAES(cta, secret)
         aimg = crypto.encryptWithAES(img, secret)
         break
 
       default:
-        break
+        throw new Error(`unknown notification type (${type})`)
     }
 
     // Handle Storage
     let storagePointer = ''
 
     // IPFS PAYLOAD --> 1, 2, 3
-    if (type === '1' || type === '2' || type === '3') {
+    if (type >= 1 && type <= 3) {
       const input = JSON.stringify({
         notification: {
           title: nsub,
@@ -377,7 +388,7 @@ export class ChannelOwner {
     // Prepare Identity and send notification
     const identity = type + '+' + storagePointer
     const identityBytes = ethers.utils.toUtf8Bytes(identity)
-    return this.contract.sendNotification(recipientAddress, identityBytes)
+    return this.contract.sendNotification(recipientAddress!, identityBytes)
   }
 
   private async getRegisteredPublicKey(
