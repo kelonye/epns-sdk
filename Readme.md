@@ -39,6 +39,7 @@ The SDK provides the following clients:
 
 - Query: ran queries against an EPNS subgraph
 - ChannelSubscription: subscribe and/ manage the subscription to a channel
+- ChannelOwner: send out channel notifications, get stats etc
 
 ### Query
 
@@ -75,11 +76,11 @@ Execute a `query` (with `variables`) against `subgraphUrl`.
 
 Make a new `ChannelSubscription` client for `signer` and `channelAddress` at `contractAddress`.
 
-### channelSubscription.subscribe(): Promise<void>
+### channelSubscription.subscribe(): Promise<ethers.Transaction>
 
 Subscribe to channel.
 
-### channelSubscription.unsubscribe(): Promise<void>
+### channelSubscription.unsubscribe(): Promise<ethers.Transaction>
 
 Cancel subscription.
 
@@ -95,6 +96,20 @@ Get whether user address is subscribed to channel.
 
 Subscribe to changes in the subscription state of user address and invoke `fn(subscribed: boolean)`.
 Returns a function to stop listening to the changes.
+
+### ChannelOwner
+
+### new ChannelOwner(contractAddress: string, signer: ethers.Signer, channelAddress: string)
+
+Make a new `ChannelOwner` client for `signer` and `channelAddress` at `contractAddress`.
+
+### channelOwner.getStats(): Promise<any>
+
+Get detailed channel stats as an owner.
+
+### channelOwner.notify(): Promise<ethers.Transaction>
+
+Send out a notification.
 
 ## License
 

@@ -1,6 +1,11 @@
 import * as ethers from 'ethers'
 import EPNS_CONTRACT_ABI from './abis/epns.json'
 import {Channel, Notification} from './sdk-types'
+import * as crypto from './utils/crypto'
+import ipfs from './utils/ipfs'
+import Debug from './utils/debug'
+
+const debug = Debug('sdk', '#fc0')
 
 const SUBSCRIBED_EVENT = 'Subscribe'
 const UNSUBSCRIBED_EVENT = 'Unsubscribe'
@@ -195,36 +200,32 @@ export class ChannelSubscription {
     this.contractAddress = contractAddress
     this.signer = signer
     this.channelAddress = channelAddress
-    this.contract = new ethers.Contract(
-      contractAddress,
-      EPNS_CONTRACT_ABI,
-      signer
-    )
+    this.contract = makeContract(contractAddress, signer)
   }
 
   /**
    * Subscribe to channel.
    * @returns Promise
    */
-  async subscribe(): Promise<void> {
-    await this.contract.subscribe(this.channelAddress)
+  async subscribe(): Promise<ethers.Transaction> {
+    return await this.contract.subscribe(this.channelAddress)
   }
 
   /**
    * Cancel subscription.
    * @returns Promise
    */
-  async unsubscribe(): Promise<void> {
-    await this.contract.unsubscribe(this.channelAddress)
+  async unsubscribe(): Promise<ethers.Transaction> {
+    return await this.contract.unsubscribe(this.channelAddress)
   }
 
   /**
    * Toggle subscription state of the user.
    * @returns Promise
    */
-  async toggle(): Promise<void> {
+  async toggle(): Promise<ethers.Transaction> {
     const subscribed = await this.getIsSubscribed()
-    await (subscribed ? this.unsubscribe : this.subscribe).call(this)
+    return await (subscribed ? this.unsubscribe : this.subscribe).call(this)
   }
 
   /**
@@ -262,4 +263,151 @@ export class ChannelSubscription {
       offs.map((off) => off())
     }
   }
+}
+
+export class ChannelOwner {
+  signer: ethers.Signer
+  contractAddress: string
+  channelAddress: string
+  contract: ethers.Contract
+
+  /**
+   * Make a new `ChannelOwner` client for `signer` and `channelAddress` at `contractAddress`.
+   * @param  {string} contractAddress
+   * @param  {ethers.Signer} signer
+   * @param  {string} channelAddress
+   */
+  constructor(
+    contractAddress: string,
+    signer: ethers.Signer,
+    channelAddress: string
+  ) {
+    this.contractAddress = contractAddress
+    this.signer = signer
+    this.channelAddress = channelAddress
+    this.contract = makeContract(contractAddress, signer)
+  }
+
+  async getStats(): Promise<any> {}
+
+  async notify(
+    type: string,
+    recipientAddress: string,
+    sub: string,
+    msg: string,
+    cta: string,
+    img: string
+  ): Promise<ethers.Transaction> {
+    let encryptedSecret: string = ''
+
+    let nsub: string = '',
+      nmsg: string = '',
+      asub: string = '',
+      amsg: string = '',
+      acta: string = '',
+      aimg: string = ''
+
+    // Decide type and storage
+    switch (type) {
+      // Broadcast Notification
+      case '1':
+        break
+
+      // Targetted Notification
+      case '3':
+        break
+
+      // Secret Notification
+      case '2':
+        // Create secret
+        let secret = crypto.makeid(14)
+
+        // Encrypt payload and change sub and nfMsg in notification
+        nsub = 'You have a secret message!'
+        nmsg = 'Open the app to see your secret message!'
+
+        // get public key from EPNSCoreHelper
+        const k = await this.getRegisteredPublicKey(recipientAddress)
+        if (k === null) {
+          // No public key, can't encrypt
+          throw new Error(
+            'Unable to encrypt for this user, no public key registered'
+          )
+        }
+
+        const publickey = k.toString().substring(2)
+        debug('This is public Key: ' + publickey)
+
+        encryptedSecret = await crypto.encryptWithECIES(secret, publickey)
+        asub = crypto.encryptWithAES(sub, secret)
+        amsg = crypto.encryptWithAES(msg, secret)
+        acta = crypto.encryptWithAES(cta, secret)
+        aimg = crypto.encryptWithAES(img, secret)
+        break
+
+      default:
+        break
+    }
+
+    // Handle Storage
+    let storagePointer = ''
+
+    // IPFS PAYLOAD --> 1, 2, 3
+    if (type === '1' || type === '2' || type === '3') {
+      const input = JSON.stringify({
+        notification: {
+          title: nsub,
+          body: nmsg,
+        },
+        data: {
+          type,
+          secret: encryptedSecret,
+          asub,
+          amsg,
+          acta,
+          aimg,
+        },
+      })
+
+      debug('uploding to IPFS...')
+
+      try {
+        storagePointer = await ipfs.add(input)
+      } catch (e) {
+        debug('IPFS upload error', e.message)
+      }
+
+      debug('IPFS cid: %o', storagePointer)
+    }
+
+    // Prepare Identity and send notification
+    const identity = type + '+' + storagePointer
+    const identityBytes = ethers.utils.toUtf8Bytes(identity)
+    return this.contract.sendNotification(recipientAddress, identityBytes)
+  }
+
+  private async getRegisteredPublicKey(
+    address: string
+  ): Promise<string | null> {
+    const results = await this.contract.queryFilter(
+      this.contract.filters.PublicKeyRegistered()
+    )
+
+    for (const item of results) {
+      if (item.args && item.args[0] === address) {
+        return item.args[1]
+      }
+    }
+
+    return null
+  }
+}
+
+/**
+ * Make ethers contract for `contractAddress` and `signer`
+ * @param  {string} contractAddress
+ * @param  {ethers.Signer} signer
+ */
+function makeContract(contractAddress: string, signer: ethers.Signer) {
+  return new ethers.Contract(contractAddress, EPNS_CONTRACT_ABI, signer)
 }
