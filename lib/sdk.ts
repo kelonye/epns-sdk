@@ -268,23 +268,17 @@ export class ChannelSubscription {
 export class ChannelOwner {
   signer: ethers.Signer
   contractAddress: string
-  channelAddress: string
   contract: ethers.Contract
 
   /**
-   * Make a new `ChannelOwner` client for `signer` and `channelAddress` at `contractAddress`.
+   * Make a new `ChannelOwner` client to manage the channel owned by `signer`.
    * @param  {string} contractAddress
    * @param  {ethers.Signer} signer
    * @param  {string} channelAddress
    */
-  constructor(
-    contractAddress: string,
-    signer: ethers.Signer,
-    channelAddress: string
-  ) {
+  constructor(contractAddress: string, signer: ethers.Signer) {
     this.contractAddress = contractAddress
     this.signer = signer
-    this.channelAddress = channelAddress
     this.contract = makeContract(contractAddress, signer)
   }
 

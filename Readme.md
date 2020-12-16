@@ -101,7 +101,7 @@ Returns a function to stop listening to the changes.
 
 ### new ChannelOwner(contractAddress: string, signer: ethers.Signer, channelAddress: string)
 
-Make a new `ChannelOwner` client for `signer` and `channelAddress` at `contractAddress`.
+Make a new `ChannelOwner` client to manage the channel owned by `signer`.
 
 ### channelOwner.getStats(): Promise<any>
 
