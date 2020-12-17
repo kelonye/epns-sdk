@@ -528,7 +528,7 @@ export class Notifications {
    * @param  {Function} fn
    * @returns Function
    */
-  onSend(fn: Function): Function {
+  onReceive(fn: Function): Function {
     const event = 'SendNotification'
 
     const cb = async (
@@ -550,10 +550,10 @@ export class Notifications {
         id: notificationId,
         userAddress: eventUserAddress,
         channelAddress: eventChannelAddress,
+        indexTimestamp: Date.now() / 1000, // todo
         ...ipfsNotification.notification,
         ...ipfsNotification.data,
       }
-
       if (ipfsNotification.data.type === '1') {
         // broadcast
         // if (userAddress === eventUserAddress) return; // do not notify sender?

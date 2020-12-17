@@ -132,7 +132,7 @@ Returns a function to cancel listening to new channel additions.
 
 Make a new `Notifications` client to subscribe to send notification events for `signer`.
 
-### notifications.onSend(fn: Function): Function
+### notifications.onReceive(fn: Function): Function
 
 Invoke `fn` for every notification sent to `signer`.
 Returns a function to cancel listening to new notifications.
