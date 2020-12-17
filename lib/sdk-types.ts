@@ -26,14 +26,14 @@ export interface Notification {
   id: string
   userAddress: string
   channelAddress: string
-  notificationTitle: string
-  notificationBody: string
-  dataType: string
-  dataSecret: string
-  dataASub: string
-  dataAMsg: string
-  dataACta: string
-  dataAImg: string
-  dataATime: string
+  title: string
+  body: string
+  type: string
+  secret: string
+  sub: string
+  msg: string
+  cta: string
+  img: string
+  time: string
   recipients: Array<string>
 }

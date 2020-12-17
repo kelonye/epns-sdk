@@ -37,8 +37,11 @@ import * as ethers from 'ethers'
 
 The SDK provides the following clients:
 
-- Query: ran queries against an EPNS subgraph
-- ChannelSubscription: subscribe and/ manage the subscription to a channel
+- Query: ran queries against an EPNS subgraph.
+- ChannelSubscription: subscribe and/ manage the subscription to a channel.
+- ChannelOwner: send out channel notifications, get stats etc.
+- Channels: subscribe to channel creations + updates.
+- Notifications: subscribe to notifications.
 
 ### Query
 
@@ -61,6 +64,10 @@ Get channel info for `channelAddress`.
 Get a list of a `userAddress`'s notifications.
 Pass in the optional `page` and `count` to get a paginated list of the notifications.
 
+#### query.getNotification(id: string): Promise<Notification>
+
+Fetch notification info matching `id`.
+
 #### query.getIsSubscribed(channelAddress: string, userAddress: string): Promise<boolean>
 
 Get whether `userAddress` is subscribed to `channelAddress`.
@@ -75,11 +82,11 @@ Execute a `query` (with `variables`) against `subgraphUrl`.
 
 Make a new `ChannelSubscription` client for `signer` and `channelAddress` at `contractAddress`.
 
-### channelSubscription.subscribe(): Promise<void>
+### channelSubscription.subscribe(): Promise<ethers.Transaction>
 
 Subscribe to channel.
 
-### channelSubscription.unsubscribe(): Promise<void>
+### channelSubscription.unsubscribe(): Promise<ethers.Transaction>
 
 Cancel subscription.
 
@@ -91,10 +98,46 @@ Toggle subscription state of the user.
 
 Get whether user address is subscribed to channel.
 
-### channelSubscription.onChange(fn: Function): Promise<Function>
+### channelSubscription.onChange(fn: Function): Function
 
 Subscribe to changes in the subscription state of user address and invoke `fn(subscribed: boolean)`.
 Returns a function to stop listening to the changes.
+
+### ChannelOwner
+
+### new ChannelOwner(contractAddress: string, signer: ethers.Signer, channelAddress: string)
+
+Make a new `ChannelOwner` client to manage the channel owned by `signer`.
+
+### channelOwner.getStats(): Promise<any>
+
+Get detailed channel stats as an owner.
+
+### channelOwner.notify(type: string, msg: string, recipientAddress?: string, sub?: string, cta?: string, img?: string): Promise<ethers.Transaction>
+
+Send out a notification.
+
+### Channels
+
+### new Channels(contractAddress: string, signer: ethers.Signer)
+
+Make a new `Channels` client to subscribe to channel events.
+
+### channels.onAdd(fn: Function): Function
+
+Invoke `fn` whenever a new channel is added.
+Returns a function to cancel listening to new channel additions.
+
+### Notifications
+
+### new Notifications(contractAddress: string, signer: ethers.Signer)
+
+Make a new `Notifications` client to subscribe to notifications sent to `signer`.
+
+### notifications.onReceive(fn: Function): Function
+
+Invoke `fn` for every notification sent to `signer`.
+Returns a function to cancel listening to new notifications.
 
 ## License
 
