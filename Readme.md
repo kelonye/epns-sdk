@@ -40,6 +40,8 @@ The SDK provides the following clients:
 - Query: ran queries against an EPNS subgraph.
 - ChannelSubscription: subscribe and/ manage the subscription to a channel.
 - ChannelOwner: send out channel notifications, get stats etc.
+- Channels: subscribe to channel creations + updates.
+- Notifications: subscribe to notifications.
 
 ### Query
 
@@ -121,7 +123,7 @@ Send out a notification.
 
 Make a new `Channels` client to subscribe to channel events.
 
-### channels.(fn: Function): Function
+### channels.onAdd(fn: Function): Function
 
 Invoke `fn` whenever a new channel is added.
 Returns a function to cancel listening to new channel additions.
@@ -130,7 +132,7 @@ Returns a function to cancel listening to new channel additions.
 
 ### new Notifications(contractAddress: string, signer: ethers.Signer)
 
-Make a new `Notifications` client to subscribe to send notification events for `signer`.
+Make a new `Notifications` client to subscribe to notifications sent to `signer`.
 
 ### notifications.onReceive(fn: Function): Function
 

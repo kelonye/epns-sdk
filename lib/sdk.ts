@@ -512,7 +512,7 @@ export class Notifications {
   contract: ethers.Contract
 
   /**
-   * Make a new `Notifications` client to subscribe to send notification events for `signer`.
+   * Make a new `Notifications` client to subscribe to notifications sent to `signer`.
    * @param  {string} contractAddress
    * @param  {ethers.Signer} signer
    */
