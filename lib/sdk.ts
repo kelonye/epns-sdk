@@ -34,7 +34,7 @@ export class Query {
     const query = isPaging
       ? `
           query ($first: Int, $skip: Int) {
-            channels(first: $first, skip: $skip, orderBy: startBlock) {
+            channels(first: $first, skip: $skip, orderBy: indexBlock, orderDirection: desc) {
               id
               name
               info
@@ -45,7 +45,7 @@ export class Query {
         `
       : `
           query {
-            channels(orderBy: startBlock) {
+            channels(orderBy: indexBlock, orderDirection: desc) {
               id
               name
               info
@@ -83,7 +83,7 @@ export class Query {
       }
     `,
       {
-        id: channelAddress.toLowerCase(),
+        id: channelAddress,
       }
     )
     return channels[0]
@@ -106,19 +106,21 @@ export class Query {
     const query = isPaging
       ? `
           query ($userAddress: String, $first: Int, $skip: Int) {
-            notifications(first: $first, skip: $skip, where: {userAddress: $userAddress}) {
+            notifications(first: $first, skip: $skip, where: {userAddress: $userAddress}, orderBy: indexBlock, orderDirection: desc) {
               id
               notificationTitle
               notificationBody
+              indexTimestamp
             }
           }
         `
       : `
           query ($userAddress: String) {
-            notifications(where: {userAddress: $userAddress}) {
+            notifications(where: {userAddress: $userAddress}, orderBy: indexBlock, orderDirection: desc) {
               id
               notificationTitle
               notificationBody
+              indexTimestamp
             }
           }
         `
@@ -290,7 +292,7 @@ export class ChannelOwner {
   async getStats(): Promise<any> {}
 
   async notify(
-    type: number,
+    type: string,
     msg: string,
     recipientAddress?: string,
     sub?: string,
@@ -305,25 +307,25 @@ export class ChannelOwner {
       acta: string = '',
       aimg: string = ''
 
-    if (type === 1 || type === 2) {
+    if (type === '1' || type === '2') {
       recipientAddress = await this.signer.getAddress()
     }
 
     // Decide type and storage
     switch (type) {
       // Broadcast Notification
-      case 1:
+      case '1':
         break
 
       // Targetted Notification
-      case 3:
+      case '3':
         if (recipientAddress === null) {
           throw new Error('recipientAddress is required for type 3')
         }
         break
 
       // Secret Notification
-      case 2:
+      case '2':
         // Create secret
         let secret = crypto.makeid(14)
 
@@ -358,7 +360,7 @@ export class ChannelOwner {
     let storagePointer = ''
 
     // IPFS PAYLOAD --> 1, 2, 3
-    if (type >= 1 && type <= 3) {
+    if (['1', '2', '3'].includes(type)) {
       const input = JSON.stringify({
         notification: {
           title: nsub,
