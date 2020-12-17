@@ -83,7 +83,7 @@ export class Query {
       }
     `,
       {
-        id: channelAddress,
+        id: channelAddress.toLowerCase(), // queries by id need to be cast to lowercase for some reason
       }
     )
     return channels[0]
