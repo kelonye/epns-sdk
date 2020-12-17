@@ -1,2 +1,8 @@
-export {Query, ChannelSubscription, ChannelOwner} from './sdk'
+export {
+  Query,
+  ChannelSubscription,
+  ChannelOwner,
+  Channels,
+  Notifications,
+} from './sdk'
 export {Channel, Notification} from './sdk-types'

@@ -1,4 +1,5 @@
 import * as ethers from 'ethers'
+import hex2ascii from 'hex2ascii'
 import EPNS_CONTRACT_ABI from './abis/epns.json'
 import {Channel, Notification} from './sdk-types'
 import * as crypto from './utils/crypto'
@@ -27,7 +28,7 @@ export class Query {
    * To retrieve a paginated list of channels, pass in the `page` and `count` query parameters, e.g. `query.getChannels(1, 3)`.
    * @param  {number} page
    * @param  {number} count
-   * @returns Promise
+   * @returns Promise<Array<Channel>>
    */
   async getChannels(page?: number, count?: number): Promise<Array<Channel>> {
     const isPaging = page !== undefined && count !== undefined
@@ -67,7 +68,7 @@ export class Query {
   /**
    * Get channel info for `channelAddress`.
    * @param  {string} channelAddress
-   * @returns Promise
+   * @returns Promise<Channel>
    */
   async getChannel(channelAddress: string): Promise<Channel> {
     const {channels} = await this.request(
@@ -95,7 +96,7 @@ export class Query {
    * @param  {string} userAddress
    * @param  {number} page
    * @param  {number} count
-   * @returns Promise
+   * @returns Promise<Array<Notification>>
    */
   async getNotifications(
     userAddress: string,
@@ -108,9 +109,16 @@ export class Query {
           query ($userAddress: String, $first: Int, $skip: Int) {
             notifications(first: $first, skip: $skip, where: {userAddress: $userAddress}, orderBy: indexBlock, orderDirection: desc) {
               id
-              notificationTitle
-              notificationBody
               indexTimestamp
+              title
+              body
+              type
+              secret
+              sub
+              msg
+              cta
+              img
+              time              
             }
           }
         `
@@ -118,9 +126,16 @@ export class Query {
           query ($userAddress: String) {
             notifications(where: {userAddress: $userAddress}, orderBy: indexBlock, orderDirection: desc) {
               id
-              notificationTitle
-              notificationBody
               indexTimestamp
+              title
+              body
+              type
+              secret
+              sub
+              msg
+              cta
+              img
+              time     
             }
           }
         `
@@ -139,10 +154,41 @@ export class Query {
   }
 
   /**
+   * Fetch notification info matching `id`.
+   * @param  {string} id
+   * @returns Promise<Notification>
+   */
+  async getNotification(id: string): Promise<Notification> {
+    const {notifications} = await this.request(
+      `
+      query($id: String) {
+        notifications(where: {id: $id}) {
+          id
+          indexTimestamp
+          title
+          body
+          type
+          secret
+          sub
+          msg
+          cta
+          img
+          time  
+        }
+      }
+    `,
+      {
+        id,
+      }
+    )
+    return notifications[0]
+  }
+
+  /**
    * Get whether `userAddress` is subscribed to `channelAddress`.
    * @param  {string} channelAddress
    * @param  {string} userAddress
-   * @returns Promise
+   * @returns Promise<boolean>
    */
   async getIsSubscribed(
     channelAddress: string,
@@ -170,7 +216,7 @@ export class Query {
    * Execute a `query` (with `variables`) against `subgraphUrl`.
    * @param  {string} query
    * @param  {any} variables
-   * @returns Promise
+   * @returns Promise<any>
    */
   async request(query: string, variables: any): Promise<any> {
     const res = await fetch(this.subGraphUrl, {
@@ -207,7 +253,7 @@ export class ChannelSubscription {
 
   /**
    * Subscribe to channel.
-   * @returns Promise
+   * @returns Promise<ethers.Transaction>
    */
   async subscribe(): Promise<ethers.Transaction> {
     return await this.contract.subscribe(this.channelAddress)
@@ -215,7 +261,7 @@ export class ChannelSubscription {
 
   /**
    * Cancel subscription.
-   * @returns Promise
+   * @returns Promise<ethers.Transaction>
    */
   async unsubscribe(): Promise<ethers.Transaction> {
     return await this.contract.unsubscribe(this.channelAddress)
@@ -223,7 +269,7 @@ export class ChannelSubscription {
 
   /**
    * Toggle subscription state of the user.
-   * @returns Promise
+   * @returns Promise<ethers.Transaction>
    */
   async toggle(): Promise<ethers.Transaction> {
     const subscribed = await this.getIsSubscribed()
@@ -245,12 +291,15 @@ export class ChannelSubscription {
    * Subscribe to changes in the subscription state of user address and invoke `fn(subscribed: boolean)`.
    * Returns a function to stop listening to the changes.
    * @param  {Function} fn
-   * @returns void
+   * @returns Function
    */
-  async onChange(fn: Function): Promise<Function> {
-    const userAddress = await this.signer.getAddress()
+  onChange(fn: Function): Function {
     const offs = [SUBSCRIBED_EVENT, UNSUBSCRIBED_EVENT].map((event) => {
-      const cb = (eventChannelAddress: string, eventUserAddress: string) => {
+      const cb = async (
+        eventChannelAddress: string,
+        eventUserAddress: string
+      ) => {
+        const userAddress = await this.signer.getAddress()
         if (
           this.channelAddress === eventChannelAddress &&
           userAddress === eventUserAddress
@@ -291,6 +340,16 @@ export class ChannelOwner {
 
   async getStats(): Promise<any> {}
 
+  /**
+   * Send out a notification.
+   * @param  {string} type
+   * @param  {string} msg
+   * @param  {string} recipientAddress?
+   * @param  {string} sub?
+   * @param  {string} cta?
+   * @param  {string} img?
+   * @returns Promise<ethers.Transaction>
+   */
   async notify(
     type: string,
     msg: string,
@@ -300,8 +359,6 @@ export class ChannelOwner {
     img?: string
   ): Promise<ethers.Transaction> {
     let encryptedSecret: string = '',
-      nsub: string = '',
-      nmsg: string = '',
       asub: string = '',
       amsg: string = '',
       acta: string = '',
@@ -329,9 +386,9 @@ export class ChannelOwner {
         // Create secret
         let secret = crypto.makeid(14)
 
-        // Encrypt payload and change sub and nfMsg in notification
-        nsub = 'You have a secret message!'
-        nmsg = 'Open the app to see your secret message!'
+        // Encrypt payload and change sub and msg in notification
+        sub = 'You have a secret message!'
+        msg = 'Open the app to see your secret message!'
 
         // get public key from EPNSCoreHelper
         const k = await this.getRegisteredPublicKey(recipientAddress!)
@@ -363,8 +420,8 @@ export class ChannelOwner {
     if (['1', '2', '3'].includes(type)) {
       const input = JSON.stringify({
         notification: {
-          title: nsub,
-          body: nmsg,
+          title: sub,
+          body: msg,
         },
         data: {
           type,
@@ -407,6 +464,112 @@ export class ChannelOwner {
     }
 
     return null
+  }
+}
+
+export class Channels {
+  signer: ethers.Signer
+  contractAddress: string
+  contract: ethers.Contract
+
+  /**
+   * Make a new `Channels` client to subscribe to channel events.
+   * @param  {string} contractAddress
+   * @param  {ethers.Signer} signer
+   */
+  constructor(contractAddress: string, signer: ethers.Signer) {
+    this.contractAddress = contractAddress
+    this.signer = signer
+    this.contract = makeContract(contractAddress, signer)
+  }
+
+  /**
+   * Invoke `fn` whenever a new channel is added.
+   * Returns a function to cancel listening to new channel additions.
+   * @param  {Function} fn
+   * @returns Function
+   */
+  onAdd(fn: Function): Function {
+    const event = 'AddChannel'
+    const cb = async (eventChannelAddress: string, identityHex: string) => {
+      const identity = hex2ascii(identityHex)
+      const channelId = identity.toLocaleLowerCase()
+      const ipfsChannel = JSON.parse(await ipfs.cat(identity))
+      const channel = {
+        id: channelId,
+        ...ipfsChannel,
+      }
+      fn(channel)
+    }
+    this.contract.on(event, cb)
+    return this.contract.off.bind(this.contract, event, cb)
+  }
+}
+
+export class Notifications {
+  signer: ethers.Signer
+  contractAddress: string
+  contract: ethers.Contract
+
+  /**
+   * Make a new `Notifications` client to subscribe to send notification events for `signer`.
+   * @param  {string} contractAddress
+   * @param  {ethers.Signer} signer
+   */
+  constructor(contractAddress: string, signer: ethers.Signer) {
+    this.contractAddress = contractAddress
+    this.signer = signer
+    this.contract = makeContract(contractAddress, signer)
+  }
+
+  /**
+   * Invoke `fn` for every notification sent to `signer`.
+   * Returns a function to cancel listening to new notifications.
+   * @param  {Function} fn
+   * @returns Function
+   */
+  onSend(fn: Function): Function {
+    const event = 'SendNotification'
+
+    const cb = async (
+      eventChannelAddress: string,
+      eventUserAddress: string,
+      identityHex: string
+    ) => {
+      const userAddress = await this.signer.getAddress()
+      const identity = hex2ascii(identityHex)
+      const notificationId = identity
+        .concat('+')
+        .concat(eventChannelAddress)
+        .concat('+')
+        .concat(eventUserAddress)
+        .toLocaleLowerCase()
+      const ipfsId = identity.split('+')[1]
+      const ipfsNotification = JSON.parse(await ipfs.cat(ipfsId))
+      const notification = {
+        id: notificationId,
+        userAddress: eventUserAddress,
+        channelAddress: eventChannelAddress,
+        ...ipfsNotification.notification,
+        ...ipfsNotification.data,
+      }
+
+      if (ipfsNotification.data.type === '1') {
+        // broadcast
+        // if (userAddress === eventUserAddress) return; // do not notify sender?
+        const isSubscribed = await this.contract.memberExists(
+          userAddress,
+          eventChannelAddress
+        )
+        if (isSubscribed) {
+          fn(notification)
+        }
+      } else if (userAddress === eventUserAddress) {
+        fn(notification)
+      }
+    }
+    this.contract.on(event, cb)
+    return this.contract.off.bind(this.contract, event, cb)
   }
 }
 
