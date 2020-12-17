@@ -1,6 +1,6 @@
 {
   "name": "epns-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SDK for the Ethereum Push Notification Service",
   "author": "vbstreetz <vbstreetz@protonmail.com>",
   "main": "ts-dist/index.js",
