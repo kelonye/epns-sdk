@@ -6,7 +6,7 @@
   "main": "ts-dist/index.js",
   "types": "ts-dist/index.d.ts",
   "scripts": {
-    "start": "rm -rf .cache dist && parcel example/index.html --port 3600 --no-autoinstall",
+    "start": "rm -rf .cache dist && parcel example/index.html --port 3601 --no-autoinstall",
     "build": "rm -rf .cache dist && parcel build example/index.html --no-source-maps --no-autoinstall",
     "prepublish": "tsc --resolveJsonModule"
   },

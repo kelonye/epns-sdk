@@ -41,9 +41,9 @@ class Program {
     this.setupQuery()
     this.setChannelName()
 
-    if (globalThis.ethereum && ethereum.isConnected()) {
-      await this.setupEthersSigner()
-    }
+    if (!globalThis.ethereum) return alert('Please install metamask extension')
+    await ethereum.enable()
+    await this.setupEthersSigner()
 
     this.setupChannelSubscription()
     this.handleChannelSubscriptionChange()
@@ -77,12 +77,6 @@ class Program {
 
   async handleChannelSubscriptionChange() {
     this.button.onclick = async (): Promise<void> => {
-      if (!this.provider) {
-        if (!globalThis.ethereum)
-          return alert('Please install metamask extension')
-        await ethereum.enable()
-        await this.setupEthersSigner()
-      }
       await this.channelSubscription.toggle.call(this.channelSubscription)
     }
 
